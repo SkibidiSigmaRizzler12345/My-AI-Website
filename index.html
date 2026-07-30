@@ -3,75 +3,111 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Real-Time AI Chat Hub</title>
+  <title>Real-Time Peer Chat</title>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; background-color: #f4f7f6; }
-    h2 { text-align: center; color: #333; }
-    #chat-box { height: 350px; border: 1px solid #ddd; background: white; border-radius: 8px; overflow-y: scroll; padding: 15px; margin-bottom: 15px; }
-    .message { margin-bottom: 12px; padding: 8px 12px; border-radius: 6px; max-width: 80%; }
-    .user { background: #007bff; color: white; margin-left: auto; }
-    .ai { background: #e9ecef; color: #333; }
-    .input-group { display: flex; gap: 10px; }
-    input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 6px; }
-    button { padding: 12px 20px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-    button:hover { background: #218838; }
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: 30px auto; padding: 20px; background-color: #f4f7f6; }
+    .card { background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ddd; }
+    #chat-box { height: 250px; overflow-y: scroll; border: 1px solid #eee; padding: 10px; background: #fafafa; margin-bottom: 10px; }
+    .msg { margin-bottom: 8px; padding: 6px 10px; border-radius: 4px; max-width: 80%; }
+    .me { background: #007bff; color: white; margin-left: auto; width: fit-content; }
+    .peer { background: #e9ecef; color: #333; width: fit-content; }
+    input[type="text"] { padding: 8px; width: 65%; margin-right: 5px; }
+    button { padding: 8px 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    #status { font-weight: bold; color: #555; }
   </style>
-  <script src="https://js.puter.com/v2/"></script>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
 <body>
 
-  <h2>💬 Live AI Chat Room</h2>
-  
-  <div id="chat-box">
-    <div class="message ai"><strong>AI Assistant:</strong> Hi there! Ask me anything, or type a message!</div>
+  <h2>🌐 Real-Time Device-to-Device Chat</h2>
+
+  <div class="card">
+    <p><strong>Your Unique ID:</strong> <span id="my-id">Generating...</span></p>
+    <p id="status">Status: Waiting for connection...</p>
+    
+    <div>
+      <input type="text" id="peer-id-input" placeholder="Paste friend's ID here...">
+      <button onclick="connectToPeer()">Connect</button>
+    </div>
   </div>
 
-  <div class="input-group">
-    <input type="text" id="userInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage()">
+  <div class="card">
+    <div id="chat-box"></div>
+    <input type="text" id="messageInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage()">
     <button onclick="sendMessage()">Send</button>
   </div>
 
   <script>
-    // 1. Initialize Real-Time Key-Value store for live memory
+    // 1. Create a peer connection with a random ID
+    const peer = new Peer();
+    let conn = null;
+
+    const myIdEl = document.getElementById('my-id');
+    const statusEl = document.getElementById('status');
     const chatBox = document.getElementById('chat-box');
 
-    async function sendMessage() {
-      const input = document.getElementById('userInput');
-      const text = input.value.trim();
+    // Display your generated ID when connected to the network
+    peer.on('open', (id) => {
+      myIdEl.innerText = id;
+    });
+
+    // 2. LISTEN FOR INCOMING CONNECTIONS (If someone connects to YOU)
+    peer.on('connection', (incomingConn) => {
+      conn = incomingConn;
+      setupConnection();
+    });
+
+    // 3. INITIATE CONNECTION (If YOU connect to someone else)
+    function connectToPeer() {
+      const peerId = document.getElementById('peer-id-input').value.trim();
+      if (!peerId) return alert('Please enter a Peer ID');
       
-      if (!text) return;
-
-      // Append User Message to UI
-      appendMessage('You', text, 'user');
-      input.value = '';
-
-      // Append Loading state for AI
-      const loadingDiv = appendMessage('AI Assistant', 'Thinking...', 'ai');
-
-      try {
-        // 2. REAL-TIME AI BACKEND CALL
-        // Streams response back directly to the chat interface
-        const response = await puter.ai.chat(text);
-        
-        // Update the loading message with actual AI response
-        loadingDiv.innerHTML = `<strong>AI Assistant:</strong> ${response}`;
-        
-        // Auto-scroll to the bottom of chat
-        chatBox.scrollTop = chatBox.scrollHeight;
-
-      } catch (error) {
-        loadingDiv.innerHTML = `<strong>System:</strong> Could not connect to AI. Try again!`;
-      }
+      conn = peer.connect(peerId);
+      setupConnection();
     }
 
-    function appendMessage(sender, message, type) {
-      const msgDiv = document.createElement('div');
-      msgDiv.className = `message ${type}`;
-      msgDiv.innerHTML = `<strong>${sender}:</strong> ${message}`;
-      chatBox.appendChild(msgDiv);
+    // Set up message event listeners once connected
+    function setupConnection() {
+      conn.on('open', () => {
+        statusEl.innerText = 'Status: Connected! You can now chat live.';
+        statusEl.style.color = 'green';
+      });
+
+      // Handle receiving live messages
+      conn.on('data', (data) => {
+        appendMessage(data, 'peer');
+      });
+
+      conn.on('close', () => {
+        statusEl.innerText = 'Status: Disconnected.';
+        statusEl.style.color = 'red';
+      });
+    }
+
+    // Send message to connected device
+    function sendMessage() {
+      const input = document.getElementById('messageInput');
+      const text = input.value.trim();
+
+      if (!text) return;
+      if (!conn || !conn.open) {
+        alert('You are not connected to anyone yet!');
+        return;
+      }
+
+      // Send data through WebRTC stream
+      conn.send(text);
+      appendMessage(text, 'me');
+      input.value = '';
+    }
+
+    function appendMessage(msg, type) {
+      const div = document.createElement('div');
+      div.className = `msg ${type}`;
+      div.innerText = msg;
+      chatBox.appendChild(div);
       chatBox.scrollTop = chatBox.scrollHeight;
-      return msgDiv;
     }
   </script>
 
