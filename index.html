@@ -3,38 +3,75 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My AI Website</title>
+  <title>Real-Time AI Chat Hub</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; text-align: center; }
-    textarea { width: 100%; height: 100px; margin-bottom: 10px; }
-    button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
-    #output { margin-top: 20px; padding: 15px; border: 1px solid #ccc; min-height: 50px; background: #f9f9f9; }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; background-color: #f4f7f6; }
+    h2 { text-align: center; color: #333; }
+    #chat-box { height: 350px; border: 1px solid #ddd; background: white; border-radius: 8px; overflow-y: scroll; padding: 15px; margin-bottom: 15px; }
+    .message { margin-bottom: 12px; padding: 8px 12px; border-radius: 6px; max-width: 80%; }
+    .user { background: #007bff; color: white; margin-left: auto; }
+    .ai { background: #e9ecef; color: #333; }
+    .input-group { display: flex; gap: 10px; }
+    input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 6px; }
+    button { padding: 12px 20px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    button:hover { background: #218838; }
   </style>
   <script src="https://js.puter.com/v2/"></script>
 </head>
 <body>
 
-  <h1>Ask My AI Assistant!</h1>
-  <textarea id="userInput" placeholder="Ask me anything..."></textarea><br>
-  <button onclick="askAI()">Ask AI</button>
+  <h2>💬 Live AI Chat Room</h2>
+  
+  <div id="chat-box">
+    <div class="message ai"><strong>AI Assistant:</strong> Hi there! Ask me anything, or type a message!</div>
+  </div>
 
-  <h3>Answer:</h3>
-  <div id="output">Your AI answer will appear here...</div>
+  <div class="input-group">
+    <input type="text" id="userInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage()">
+    <button onclick="sendMessage()">Send</button>
+  </div>
 
   <script>
-    async function askAI() {
-      const prompt = document.getElementById('userInput').value;
-      const output = document.getElementById('output');
+    // 1. Initialize Real-Time Key-Value store for live memory
+    const chatBox = document.getElementById('chat-box');
+
+    async function sendMessage() {
+      const input = document.getElementById('userInput');
+      const text = input.value.trim();
       
-      output.innerText = "Thinking...";
-      
+      if (!text) return;
+
+      // Append User Message to UI
+      appendMessage('You', text, 'user');
+      input.value = '';
+
+      // Append Loading state for AI
+      const loadingDiv = appendMessage('AI Assistant', 'Thinking...', 'ai');
+
       try {
-        // Calling AI capability right from your frontend!
-        let response = await puter.ai.chat(prompt);
-        output.innerText = response;
+        // 2. REAL-TIME AI BACKEND CALL
+        // Streams response back directly to the chat interface
+        const response = await puter.ai.chat(text);
+        
+        // Update the loading message with actual AI response
+        loadingDiv.innerHTML = `<strong>AI Assistant:</strong> ${response}`;
+        
+        // Auto-scroll to the bottom of chat
+        chatBox.scrollTop = chatBox.scrollHeight;
+
       } catch (error) {
-        output.innerText = "Error: Something went wrong!";
+        loadingDiv.innerHTML = `<strong>System:</strong> Could not connect to AI. Try again!`;
       }
+    }
+
+    function appendMessage(sender, message, type) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `message ${type}`;
+      msgDiv.innerHTML = `<strong>${sender}:</strong> ${message}`;
+      chatBox.appendChild(msgDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
+      return msgDiv;
     }
   </script>
 
